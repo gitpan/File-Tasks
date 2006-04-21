@@ -1,25 +1,27 @@
-name: File-Tasks
-version: 0.05
-abstract: Manipulate sets of file tasks, to be applied to a filesystem
-author: Adam Kennedy <adam@phase-n.com>
-license: unknown
+
+no_index: 
+  directory: 
+    - inc
+    - t
+generated_by: Module::Install version 0.62
 distribution_type: module
-build_requires:
+version: 0.06
+name: File-Tasks
+author: Adam Kennedy <cpan@ali.as>, L<http://ali.as/>
+license: perl
+build_requires: 
   Test::More: 0.47
   Test::ClassAPI: 1.02
-requires:
-  perl: 5.005
-  Clone: 0.13
-  File::Find::Rule: 0.20
-  File::Flat: 0.92
-  File::Spec: 0.82
-  List::Util: 1.15
+  Class::Inspector: 1.11
+requires: 
   Scalar::Util: 1.15
+  File::Find::Rule: 0.20
+  File::Spec: 0.80
   Archive::Builder: 1.04
-  Param::Coerce: 0.05
+  File::Flat: 0.92
+  perl: 5.005
+  List::Util: 1.15
   Params::Util: 0.06
-no_index:
-  directory:
-    - t.data
-    - inc
-generated_by: Module::Install version 0.37
+  Clone: 0.13
+  Params::Coerce: 0.05
+abstract: A set of file tasks to be executed in a directory

@@ -28,12 +28,18 @@ METHODS
     Create and return a new "File::Tasks" object. Takes as argument a number
     of parameters in "<Key =" $value>> form.
 
-    Provider
+    provider
         Provide a custom Data Provider. The passed object must be a
         sub-class of File::Tasks::Provider.
 
+    Returns a new "File::Tasks" object.
+
   provider
     Returns the Provider object for the File::Tasks
+
+  ignore
+    Returns the original "File::Find::Rule" for the files to be ignore
+    provided to the constructor.
 
   paths
     Returns as a sorted list the file paths of all of the Tasks
@@ -182,7 +188,7 @@ AUTHOR
     Adam Kennedy <cpan@ali.as>, <http://ali.as/>
 
 COPYRIGHT
-    Copyright 2005 Adam Kennedy. All rights reserved.
+    Copyright 2005, 2006 Adam Kennedy. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify it
     under the same terms as Perl itself.

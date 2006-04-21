@@ -1,5 +1,5 @@
 Changes
-inc/ExtUtils/AutoInstall.pm
+inc/Module/AutoInstall.pm
 inc/Module/Install.pm
 inc/Module/Install/AutoInstall.pm
 inc/Module/Install/Base.pm
@@ -22,11 +22,11 @@ Makefile.PL
 MANIFEST			This list of files
 META.yml
 README
-t.data/delete/one.txt
-t.data/delete/three/three.txt
-t.data/delete/two.txt
 t/01_compile.t
 t/02_api.t
 t/03_provider.t
 t/04_remove.t
 t/99_pod.t
+t/data/delete/one.txt
+t/data/delete/three/three.txt
+t/data/delete/two.txt

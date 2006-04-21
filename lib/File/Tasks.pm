@@ -2,22 +2,23 @@ package File::Tasks;
 
 # See POD at end for docs
 
+use 5.005;
 use strict;
 use Clone                 ();
 use Params::Util          '_INSTANCE';
-use Param::Coerce         ();
+use Params::Coerce        ();
 use File::Tasks::Provider ();
 use File::Tasks::Add      ();
 use File::Tasks::Edit     ();
 use File::Tasks::Remove   ();
+use constant 'FFR'  => 'File::Find::Rule';
 use overload 'bool' => sub () { 1 };
 use overload '+'    => '_overlay';
 
 use vars qw{$VERSION};
 BEGIN {
-	$VERSION = '0.05';
+	$VERSION = '0.06';
 }
-
 
 
 
@@ -32,36 +33,44 @@ sub new {
 
 	# Create the basic object
 	my $self = bless {
-		Provider => 'File::Tasks::Provider',
-		Tasks    => {},
+		provider => 'File::Tasks::Provider',
+		tasks    => {},
+		ignore   => undef,
 		}, $class;
 
-	# Accept an alternate Provider
-	if ( _INSTANCE($params{Provider}, 'File::Tasks::Provider') ) {
-		$self->{Provider} = $params{Provider};
+	# Accept an alternate provider
+	if ( _INSTANCE($params{provider}, 'File::Tasks::Provider') ) {
+		$self->{provider} = $params{provider};
+	}
+
+	# Set the auto-ignore
+	if ( _INSTANCE($params{ignore}, FFR) ) {
+		$self->{ignore} = $params{ignore}->prune->discard;
 	}
 
 	$self;
 }
 
-sub provider { $_[0]->{Provider} }
+sub provider { $_[0]->{provider} }
+
+sub ignore { $_[0]->{ignore} }
 
 # We need to do this ourself, as sort in scalar context returns undef
 sub paths {
 	wantarray
-		? sort keys %{$_[0]->{Tasks}}
-		: scalar(keys %{$_[0]->{Tasks}});
+		? sort keys %{$_[0]->{tasks}}
+		: scalar(keys %{$_[0]->{tasks}});
 }
 
 sub tasks {
-	my $Tasks = $_[0]->{Tasks};
-	map { $Tasks->{$_} } $_[0]->paths;
+	my $tasks = $_[0]->{tasks};
+	map { $tasks->{$_} } $_[0]->paths;
 }
 
 sub task {
 	my $self = shift;
 	my $path = defined $_[0] ? shift : return undef;
-	$self->{Tasks}->{$path};
+	$self->{tasks}->{$path};
 }
 
 
@@ -87,14 +96,15 @@ sub remove_dir {
 	my $self = shift;
 	my $dir  = -d $_[0] ? shift : return undef;
 	require File::Find::Rule; # Only load as needed
-	my $Rule = _INSTANCE(shift, 'File::Find::Rule')
-		|| File::Find::Rule->file;
+	my $Rule = _INSTANCE(shift, 'File::Find::Rule') || FFR->new;
+	$Rule = FFR->or( $self->{ignore} || (), $Rule )->relative->file;
 
 	# Execute the file and add all resulting files as Remove entries
-	my @files = $Rule->relative->in( $dir );
+	my @files = $Rule->in($dir);
 	foreach my $file ( @files ) {
 		$self->remove( $file ) or return undef;
 	}
+
 	scalar @files;
 }
 
@@ -102,14 +112,14 @@ sub set {
 	my $self = shift;
 	my $Task = _INSTANCE(shift, 'File::Tasks::Task') or return undef;
 	$self->clashes($Task->path) and return undef;
-	$self->{Tasks}->{$Task} = $Task;
+	$self->{tasks}->{$Task} = $Task;
 }
 
 sub clashes {
 	my $self = shift;
 	my $path = defined $_[0] ? shift : return undef;
-	return '' if $self->{Tasks}->{$path};
-	foreach ( sort keys %{$self->{Tasks}} ) {
+	return '' if $self->{tasks}->{$path};
+	foreach ( sort keys %{$self->{tasks}} ) {
 		return 1 if $path eq $_;
 		return 1 if $_ =~ m!^$path/!;
 		return 1 if $path =~ m!$_/!;
@@ -126,8 +136,8 @@ sub clashes {
 
 sub test {
 	my $self = shift;
-	foreach my $path ( sort keys %{$self->{Tasks}} ) {
-		my $Task = $self->{Tasks}->{$path} or return undef;
+	foreach my $path ( sort keys %{$self->{tasks}} ) {
+		my $Task = $self->{tasks}->{$path} or return undef;
 		$Task->test or return undef;
 	}
 	1;
@@ -135,8 +145,8 @@ sub test {
 
 sub execute {
 	my $self = shift;
-	foreach my $path ( sort keys %{$self->{Tasks}} ) {
-		my $Task = $self->{Tasks}->{$path} or return undef;
+	foreach my $path ( sort keys %{$self->{tasks}} ) {
+		my $Task = $self->{tasks}->{$path} or return undef;
 		$Task->execute or return undef;
 	}
 	1;
@@ -151,8 +161,8 @@ sub execute {
 
 sub overlay {
 	my $self  = Clone::clone shift;
-	my $other = Param::Coerce::coerce('File::Tasks', shift) or return undef;
-	foreach my $Task ( $other->Tasks ) {
+	my $other = Params::Coerce::coerce('File::Tasks', shift) or return undef;
+	foreach my $Task ( $other->tasks ) {
 		my $Current = $self->task($Task->path);
 		unless ( $Current ) {
 			$self->set($Current) or return undef;
@@ -161,14 +171,14 @@ sub overlay {
 		if ( $Task->type eq 'add' ) {
 			if ( $Current->type eq 'add' ) {
 				# Add over Add - Replace existing object
-				$self->{Tasks}->{$Task} = $Task;
+				$self->{tasks}->{$Task} = $Task;
 			} else {
 				# Add over Edit - Convert Add to Edit and replace
 				# Add over Delete - Convert Add to Edit and replace
 				my $Edit = File::Tasks::Edit->new(
 					$self, $Task->path, $Task->source,
 					) or return undef;
-				$self->{Tasks}->{$Edit} = $Edit;
+				$self->{tasks}->{$Edit} = $Edit;
 			}
 		} elsif ( $Task->type eq 'edit' ) {
 			if ( $Current->type eq 'add' ) {
@@ -176,19 +186,19 @@ sub overlay {
 				my $Add = File::Tasks::Add->new(
 					$self, $Task->path, $Task->source,
 					) or return undef;
-				$self->{Tasks}->{$Add} = $Add;
+				$self->{tasks}->{$Add} = $Add;
 			} else {
 				# Edit over Edit - Replace existing object
 				# Edit over Delete - Replace existing object
-				$self->{Tasks}->{$Task} = $Task;				
+				$self->{tasks}->{$Task} = $Task;				
 			}
 		} else {
 			if ( $Current->type eq 'add' ) {
 				# Delete over Add - Tasks cancel each other out
-				delete $self->{Tasks}->{$Task};
+				delete $self->{tasks}->{$Task};
 			} elsif ( $Current->type eq 'edit' ) {
 				# Delete over Edit - Replace existing object
-				$self->{Tasks}->{$Task} = $Task;
+				$self->{tasks}->{$Task} = $Task;
 			} else {
 				# Nothing to do
 			}
@@ -200,7 +210,7 @@ sub overlay {
 # A thin wrapper to handle the way overloaded arguments are provided
 sub _overlay {
 	my $left  = _INSTANCE(shift, 'File::Tasks') ? shift : return undef;
-	my $right = Param::Coerce::coerce('File::Tasks', shift) or return undef;
+	my $right = Params::Coerce::coerce('File::Tasks', shift) or return undef;
 	($left, $right) = ($right, $left) if $_[0];
 	$left->overlay($right);
 }
@@ -278,16 +288,23 @@ of parameters in C<<Key => $value>> form.
 
 =over 4
 
-=item Provider
+=item provider
 
 Provide a custom Data Provider. The passed object must be a sub-class
 of L<File::Tasks::Provider>.
 
 =back
 
+Returns a new C<File::Tasks> object.
+
 =head2 provider
 
 Returns the Provider object for the File::Tasks
+
+=head2 ignore
+
+Returns the original C<File::Find::Rule> for the files to be ignore
+provided to the constructor.
 
 =head2 paths
 
@@ -453,7 +470,7 @@ Adam Kennedy E<lt>cpan@ali.asE<gt>, L<http://ali.as/>
 
 =head1 COPYRIGHT
 
-Copyright 2005 Adam Kennedy. All rights reserved.
+Copyright 2005, 2006 Adam Kennedy. All rights reserved.
 
 This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl itself.
