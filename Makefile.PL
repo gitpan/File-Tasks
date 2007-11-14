@@ -1,8 +1,9 @@
+use strict;
 use inc::Module::Install;
 
 name           'File-Tasks';
 all_from       'lib/File/Tasks.pm';
-requires       'Clone'            => '0.13';
+requires       'Clone'            => '0.21';
 requires       'File::Find::Rule' => '0.20';
 requires       'File::Flat'       => '0.92';
 requires       'File::Spec'       => '0.80';
@@ -16,5 +17,4 @@ build_requires 'Class::Inspector' => '1.11'; # Needed by Test::ClassAPI
 build_requires 'Test::ClassAPI'   => '1.02';
 include        'Test::ClassAPI';
 
-auto_install;
 WriteAll;

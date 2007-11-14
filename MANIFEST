@@ -1,7 +1,5 @@
 Changes
-inc/Module/AutoInstall.pm
 inc/Module/Install.pm
-inc/Module/Install/AutoInstall.pm
 inc/Module/Install/Base.pm
 inc/Module/Install/Can.pm
 inc/Module/Install/Fetch.pm
@@ -26,7 +24,8 @@ t/01_compile.t
 t/02_api.t
 t/03_provider.t
 t/04_remove.t
-t/99_pod.t
+t/98_pod.t
+t/99_pmv.t
 t/data/delete/one.txt
 t/data/delete/three/three.txt
 t/data/delete/two.txt
